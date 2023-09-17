@@ -3,45 +3,44 @@ package com.example.tx.service;
 import com.example.tx.entity.registration.EmailValidator;
 import com.example.tx.entity.registration.RegistrationRequest;
 import com.example.tx.entity.user.AppUser;
-import com.example.tx.entity.user.AppUserRole;
-import com.example.tx.entity.email.EmailSender;
 import com.example.tx.entity.registration.token.ConfirmationToken;
-import lombok.AllArgsConstructor;
+import com.example.tx.entity.user.AppUserRole;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 
 @Service
-@AllArgsConstructor
+@RequiredArgsConstructor
 public class RegistrationService {
 
     private final AppUserService appUserService;
     private final EmailValidator emailValidator;
     private final ConfirmationTokenService confirmationTokenService;
-    private final EmailSender emailSender;
+    private final EmailService emailSender;
 
+    @Transactional
     public String register(RegistrationRequest request) {
         boolean isValidEmail = emailValidator.
                 test(request.getEmail());
 
         if (!isValidEmail) {
-            throw new IllegalStateException("email not valid");
+            throw new IllegalStateException("Email is not valid.");
         }
 
         String token = appUserService.signUpUser(
                 new AppUser(
-                        request.getFirstName(),
-                        request.getLastName(),
-                        request.getEmail(),
+                        request.getFirstName().toLowerCase(),
+                        request.getLastName().toLowerCase(),
+                        request.getEmail().toLowerCase(),
                         request.getPassword(),
                         AppUserRole.USER
-
                 )
         );
 
-        String link = "http://localhost:8080/api/v1/registration/confirm?token=" + token;
-        emailSender.send(
+        String link = "http://localhost:8080/signup/confirm/" + token;
+        emailSender.send("TradeX - Confirm your email",
                 request.getEmail(),
                 buildEmail(request.getFirstName(), link));
 
@@ -53,22 +52,22 @@ public class RegistrationService {
         ConfirmationToken confirmationToken = confirmationTokenService
                 .getToken(token)
                 .orElseThrow(() ->
-                        new IllegalStateException("token not found"));
+                        new IllegalStateException("Token was not found."));
 
         if (confirmationToken.getConfirmedAt() != null) {
-            throw new IllegalStateException("email already confirmed");
+            throw new IllegalStateException("Email already confirmed.");
         }
 
         LocalDateTime expiredAt = confirmationToken.getExpiresAt();
 
         if (expiredAt.isBefore(LocalDateTime.now())) {
-            throw new IllegalStateException("token expired");
+            throw new IllegalStateException("Link has expired.");
         }
 
         confirmationTokenService.setConfirmedAt(token);
         appUserService.enableAppUser(
                 confirmationToken.getAppUser().getEmail());
-        return "confirmed";
+        return "Email confirmed.";
     }
 
     private String buildEmail(String name, String link) {

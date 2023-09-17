@@ -1,5 +1,6 @@
 package com.example.tx.service;
 
+import com.example.tx.utils.EmailProperties;
 import com.example.tx.entity.email.EmailSender;
 import lombok.AllArgsConstructor;
 import org.slf4j.Logger;
@@ -9,8 +10,8 @@ import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
-import javax.mail.MessagingException;
-import javax.mail.internet.MimeMessage;
+import jakarta.mail.MessagingException;
+import jakarta.mail.internet.MimeMessage;
 
 @Service
 @AllArgsConstructor
@@ -18,12 +19,12 @@ public class EmailService implements EmailSender {
 
     private final static Logger LOGGER = LoggerFactory
             .getLogger(EmailService.class);
-
     private final JavaMailSender mailSender;
+    private final EmailProperties emailProperties;
 
     @Override
     @Async
-    public void send(String to, String email) {
+    public void send(String subject, String to, String email) {
         try {
             MimeMessage mimeMessage = mailSender.createMimeMessage();
             MimeMessageHelper helper =
@@ -31,11 +32,11 @@ public class EmailService implements EmailSender {
             helper.setText(email, true);
             helper.setTo(to);
             helper.setSubject("Confirm your email");
-            helper.setFrom("hello@amigoscode.com");
+            helper.setFrom(emailProperties.getUsername());
             mailSender.send(mimeMessage);
         } catch (MessagingException e) {
-            LOGGER.error("failed to send email", e);
-            throw new IllegalStateException("failed to send email");
+            LOGGER.error(emailProperties.getErrorMessage(), e);
+            throw new IllegalStateException(emailProperties.getErrorMessage());
         }
     }
 }
